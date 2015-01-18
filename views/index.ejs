@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <% include partials/head %>
+  </head>
+  <body>
+    <div class="container">
+    	<div class="header" style=" font-family: 'AmaticSCBold', Verdana, Geneva, sans-serif;  font-size: 53px;  font-weight: normal;  word-spacing: 5px; letter-spacing: 0px;  line-height: 55px;  color: #404040;">
+            {j.4.R.\/.1.5.} || {Just A Rather Very Intelligent System}  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// AKA J.A.R.V.I.S.
+      </div>
+    	<div class="inner">
+        <div class="left-block" style="padding-top:30px">
+          <p style="font-size:30px; line-height:30px;">
+            <b>This app is being developed for IBM Hackathon.</b> <br/>
+            Jarvis is a new age news/imformation aggregator for users. Just tell us your favourite news/blogs/websites, jarvis will go out and collect the latest stuff going on from the sites and serve them to you, it also lets you to save the content for future reading. Well you may think there are products which are already available, Yes there are. But jarvis provides some surprise user experience features on the client side, which makes it the best.
+          </p>
+        </div>
+        <div class="right-block">
+        	<img src="images/hackathon.png" style="max-width:90%;"/>
+        </div>
+      </div>
+      <div class="clr">&nbsp;</div>
+      <div class="bottom">
+      	<div class="inner">
+          <p>Signup, login or learn more about this product and its use case.</p>
+          <ul class="signup">
+            <li><button class="redbut" data-toggle="modal" href="#about">About J.A.R.V.I.S.</button></li>
+            <li><button class="redbut" data-toggle="modal" href="#screencast"/>Learn More</button></li>
+            <li><button class="redbut" data-toggle="modal" href="#signin"/>Login</button></li>
+            <li><button class="redbut" data-toggle="modal" href="#signup"/>Register</button></li>
+          </ul>
+          <ul class="sources">
+            <li>Powered by: </li>
+            <li><a href="http://techcrunch.com/" target="none"><img src="images/logos/tc.svg"></a></li>
+            <li><a href="https://news.ycombinator.com/news" target="none"><img src="images/logos/hn.png"></a></li>
+            <li><a href="http://mashable.com/" target="none"><img src="images/logos/mashable.png"></a></li>
+            <li><a href="https://news.google.com/" target="none"><img src="images/logos/googlenews.png"></a></li>
+            <li><a href="http://www.nytimes.com/" target="none"><img src="images/logos/nyt.png"></a></li>
+            <li><a href="http://www.bbc.com/news/" target="none"><img src="images/logos/bbc.png"></a></li>
+            <li><a href="http://www.marketwatch.com/" target="none"><img src="images/logos/mw.svg"></a></li>
+            <li><a href="http://www.reddit.com/" target="none"><img src="images/logos/reddit.png"></a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <% include partials/loader %>
+
+    <% include modals/about %>
+    <% include modals/screencast %>
+    <% include modals/login %>
+    <% include modals/signup %>
+
+    <% include partials/foot %>
+  </body>
+</html>
+
+<script type="text/javascript">
+  $(document).ready(function(){
+    var email,pass;
+
+    var showAlert = function (type,body,time) {
+      swal({
+            title: type,
+            text: body,
+            type: type,
+            // timer:time,
+            confirmButtonColor: "#DD6B55"
+            },function(){
+              if(type === "success"){
+                window.location.href="/aaronswartz";  
+              }else{
+                $('input').prop('disabled',false);
+                // $('#myModal').modal('hide');
+                // $('#myModal').modal('hide');
+              }
+            }
+          );
+    }
+    $("#rsubmit").click(function(){
+        $(".loadinggif").show();
+        $('input').prop('disabled',true);
+        email=$("#remail").val();
+        pass=$("#rpassword").val();
+        fullname=$("#rfullname").val();
+        /*
+        * Perform some validation here.
+        */
+        $.post("/register",{email:email,pwd:pass,fname:fullname},function(data){        
+            code = data['type'];
+            mssg = data['mssg'];
+            if(code === "Ok"){
+              showAlert("success",mssg,2000);
+            }else{
+              showAlert("error",mssg,2000);
+            };
+        });
+    });
+
+    $("#lsubmit").click(function(){
+      email=$("#lemail").val();
+      pass=$("#lpassword").val();
+      $('input').prop('disabled',true);
+      /*
+      * Perform some validation here.
+      */
+      $.post("/login",{email:email,pwd:pass},function(data){
+        code = data['type'];
+        mssg = data['mssg'];
+        switch(code){
+          case('mailidErr'):
+            showAlert("error",mssg,2000);
+            break;
+          case('Ok'):
+            showAlert("success",mssg,2000);
+            break;
+          case('pwdErr'):
+            showAlert("error",mssg,2000);
+            break;  
+          default:
+            showAlert("error","Some error occured. Try again later",2000);
+        } 
+      });
+    });
+  });
+</script>

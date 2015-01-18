@@ -1,0 +1,358 @@
+<html lang="en">
+  <head>
+    <% include partials/head %>
+  </head>
+  <body>
+    <div class="container">
+
+      <% include partials/home/header %>
+
+      <div class="inner">
+
+        <% include partials/home/categories %>
+        
+        <hr style="border: 1px dashed #CCC; margin: 0px;" />
+        <div style="display:inline-block; width:100%;">
+
+          <div class="left" style="width:70%; display:inline-block; float:left;">
+            <div class="innerheader" style="width:98%; display:inline-block; float:left;">
+              <span style="float:left;">
+                  Showing news from <span id="sourcehead">selected source</span> <i class="fa fa-hand-o-down" style="color:grey;"></i> 
+              </span>
+              <span class="controls well" style="float:right; font-size: 15px; line-height: 15px; margin-right:10px; display: inline-block; color: whitesmoke; opacity: 0.7; padding: 5px;">
+                <i class="fa fa-play" id="state"></i>
+                <span style="color:black; font-weight:900;">Audio state: <span id="audstate">stopped</span></span>
+              </span>
+              
+            </div>
+            <div class="well" id="newscontainer" style="margin-top:10px; width:93%; display:inline-block; float:left; height: 325px; overflow-y:auto;">
+            </div>
+          </div>
+          <div class="right" style="width:30%; display:inline-block; float:left; overflow-y:auto">
+            <div class="well" style="height:400px; margin-top:10px;">
+              <div class="innerheader" style="width:100%; display:inline-block; float:left; margin: 0px 0px 10px 0px; font-size: 20px; text-align:center">
+                Saved articles for current session <i class="fa fa-hand-o-down" style="color:grey;"></i>
+              </div>
+              <div id="savednewscontainer" style="float:left; width:100%;">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="cover">
+    </div>
+
+    <div id="content">
+        <video id="webcam" autoplay width="400" height="300"></video>
+        <canvas id="canvas-source" width="400" height="300"></canvas>
+        <canvas id="canvas-highlights" width="400" height="300"></canvas>
+        <canvas id="canvas-blended" width="400" height="300"></canvas>
+
+        <div id="hotSpots">
+            <div class="link" id="state" style="left: 25%; line-height: 50px;"><i class="fa fa-play" id="state" style="line-height:50px; font-size:50px;"></i></div>
+        </div>
+    </div>
+
+    <% include partials/loader %>
+    <p class="loadingtext flashing">
+      loading...
+    </p>
+
+    <% include modals/savednews %>
+    <% include modals/loadmore %>
+
+    <% include partials/foot %>
+  </body>
+</html>
+<script src="http://demos.flesler.com/jquery/scrollTo/js/jquery.scrollTo-min.js?1.4.11"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/handsfree/app.js"></script>
+<script type="text/javascript">
+  window.speechSynthesis.cancel();
+
+  var socket = io();
+
+  socket.on("connect",function(){
+    console.log("connected to server");
+  });
+
+  var fadetoggle = function(){
+    $('#cover').fadeToggle("medium",function(){
+      $('.gifcontainer').fadeToggle();
+      $('.loadingtext').fadeToggle();
+    });
+  }
+
+  var speakingNews = [],
+      statePlaying = false,
+      newsind = 0,
+      sourceName = "",
+      userEmail = "<%= mail %>",
+      returningUser = false;
+
+  $(document).ready(function(){
+
+    $('.link').on('motion', function(ev, data){
+      setTimeout(function(){
+        console.log('motion detected on a link to', data.spot.el.id);
+      }, 2000);
+      var spot = $(data.spot.el);
+      spot.addClass('active');
+      setTimeout(function(){
+        spot.removeClass('active');
+      }, 230);
+    });
+
+    if (window.SpeechSynthesisUtterance === undefined) {
+      alert('speech synthesis is not available for your browser');
+    }
+
+    $(window).on('beforeunload', function() {
+      window.speechSynthesis.cancel();
+      // return 'Removing all the links to the page and performing a reload...';
+    });
+
+    $('.dropdown #source').on('click',function(){
+      var source_code = $(this).attr('data-code');
+      window.speechSynthesis.cancel();
+      speakingNews = [];
+      socket.emit("get data",source_code);
+      fadetoggle();
+    });
+
+    $('#savednews').on('click',function(){
+      $('#savedmodal').modal('toggle');
+      socket.emit("get saved news",userEmail);
+    });
+
+    var changeState = function(){
+      if (!statePlaying) {
+        window.speechSynthesis.resume();
+        statePlaying = true;
+        $('#audstate').text('Playing');
+      }else{
+        window.speechSynthesis.pause();
+        statePlaying = false;
+        $('#audstate').text('Paused');
+      }
+    }
+
+    $("#state").on('click',function(){
+
+      if(speakingNews.length == 0){
+        showalert("No news to play","","First load news from a news source to start playing","error");
+      }else{
+        $(this).hasClass('fa fa-play') ? $(this).attr('class','fa fa-pause') : $(this).attr('class','fa fa-play');
+        (window.speechSynthesis.speaking) ? changeState() : startspeaking() ;
+      }
+
+      // console.log(window.speechSynthesis.speaking)
+
+      //value="en-US" data-voice-uri="Google US English" , value="en-GB" data-voice-uri="Google UK English Male" , value="en-GB" data-voice-uri="Google UK English Female" , value="es-ES" data-voice-uri="Google Español" , value="fr-FR" data-voice-uri="Google Français" , value="it-IT" data-voice-uri="Google Italiano" , value="de-DE" data-voice-uri="Google Deutsch" , value="ja-JP" data-voice-uri="Google 日本人" , value="ko-KR" data-voice-uri="Google 한국의" , value="zh-CN" data-voice-uri="Google 中国的" , value="" data-voice-uri="native"
+      // var msg = new SpeechSynthesisUtterance();
+      // // Set the text.
+      // msg.text = "My name is tony stark and I'am Iron man";
+      // // Set the attributes.
+      // // msg.volume = parseFloat(volumeInput.value);
+      // // msg.rate = parseFloat(rateInput.value);
+      // // msg.pitch = parseFloat(pitchInput.value);
+      // // If a voice has been selected, find the voice and set the
+      // // utterance instance's voice attribute.
+      // msg.voice = "Google UK English Male";
+      // Queue this utterance.
+      // window.speechSynthesis.speak(msg);
+    });
+
+    socket.on("news",function(mssg){
+      populate(mssg);
+    });
+
+    var populate = function(data){
+      $('#newscontainer').html("");
+      $('#savednewscontainer').html("");
+      dataObj = JSON.parse(data);
+      sourceName = dataObj['source'];
+      $("#sourcehead").text(sourceName);
+      for(var x in dataObj['news']){
+        news = dataObj['news'][x];
+        createElem(news['title'],news['description'],news['link'],x);
+        speakingNews.push(news['title']);
+      }
+      $('.news:eq(0)').css('opacity',1);
+      $('.controls').fadeIn();
+      fadetoggle();
+    };
+
+    var createElem = function(header,desc,link,newsindex){
+      divstring = '<div class="well news" id="hovertest" data-newsid="' + newsindex + '" style="width:93%; display:inline-block; float:left; margin-bottom:5px"><div class="head" style="width:100%; float:left; border-bottom: 1px dashed lightgrey; margin-bottom:10px;"> <h4 style="margin: 0px; width:100%; float:left;"><span style="width: 90%; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; float: left;">' + header + '</span> <span style="float:right;"> <a id="sourcelink" href="' + link + '" target="none"> <i class="fa fa-external-link-square"></i></a> <i class="fa fa-bookmark-o" id="saveart" data-saved="false" style="cursor:pointer;"></i></span> </h4> </div> <div class="body" style="max-height:45px; width:100%; float:left; overflow:hidden; position:relative;" >' + desc + ' <p class="readmore"><a id="modalread"><i class="fa fa-eye" id="more" style="cursor:pointer;"></i></a></p></div></div>';
+      $('#newscontainer').append(divstring);
+      $('.news[data-newsid="' + newsindex + '"] .readmore').on('click',function(){
+        title = $(this).parents('.news').find('h4').text();
+        link = $(this).parents('.news').find('#sourcelink').attr('href');
+        desc = $(this).parents('.news').find('.body').text();
+        showalert(title,link,desc,"info")
+      });
+      $('.news[data-newsid="' + newsindex + '"] h4 #sourcelink').on('click',function(){
+        if(statePlaying){
+          $("#state").trigger('click');
+          returningUser = true;
+          $('#audstate').text('Paused');
+        }
+        window.speechSynthesis.cancel();
+      });
+      $('.news[data-newsid="' + newsindex + '"] #saveart').on('click',function(){
+        $(this).hasClass('fa fa-bookmark-o') ? $(this).attr('class','fa fa-bookmark') : $(this).attr('class','fa fa-bookmark-o');
+        title = $(this).parents('.news').find('h4').text();
+        link = $(this).parents('.news').find('#sourcelink').attr('href');
+        desc = $(this).parents('.news').find('.body').text();
+        if($(this).attr('data-saved') == "true"){
+          removearticle(title);
+          removefromsidebar(newsindex,title);
+          $(this).attr('data-saved',"false");
+        }else{
+          savearticle(title,link,desc,sourceName);
+          addtosidebar(newsindex,title);
+          $(this).attr('data-saved',"true");
+        }
+      })
+    };
+
+    var addtosidebar = function(nid,title){
+      var elem = '<div class="well savednews" data-mainnewsid="' + nid + '" style=""> <div class="title" style="float:left; width:90%; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; line-height:20px;" title="' + title + '"> ' + title + ' </div> <div class="close" id="remove" style="float:right"> <i class="fa fa-times"></i> </div></div>'
+      $('#savednewscontainer').prepend(elem);
+      $('.savednews[data-mainnewsid="' + nid + '"] #remove').on('click',function(){
+        mainnewsid = $(this).parents('.savednews').attr('data-mainnewsid');
+        $('.news[data-newsid="' + mainnewsid + '"] #saveart').trigger( "click" );
+      });
+    };
+
+    var removefromsidebar = function(nid,title){
+      $('.savednews[data-mainnewsid="' + nid + '"]').remove();
+    };
+
+    var savearticle = function(title,link,desc,source) {
+      src = {}
+      src['title'] = title;
+      src['link'] = link;
+      src['desc'] = desc;
+      src['source'] = source;
+      src['useremail'] = userEmail;
+      socket.emit("save news",src);
+      socket.on('news save status',function(stat){
+        if(stat === "ok"){
+          showalert('Article saved',"","Article with the title: " + title + " From the source: " + source +  " , has been saved successfully. ","success");
+        }
+      });
+    };
+
+    var removearticle = function(title) {
+      src = {}
+      src['title'] = title;
+      src['useremail'] = userEmail;
+      socket.emit("remove saved news",src);
+      socket.on('news removal status',function(stat){
+        if(stat === "ok"){
+          showalert('Article removed',"","Article with the title: " + title + " , has been removed successfully. ","success");
+        }
+      });
+    };
+
+    socket.on('saved news',function(savednews){
+      $('#savednewsmodalcontainer').html("");
+      showprevmodal(savednews);
+      if(statePlaying){
+        $("#state").trigger('click');
+        $('#audstate').text('Paused');
+      }
+    });
+
+    var showprevmodal = function(savednews){
+      for (var x in savednews ) {
+        var el = '<div class="well prevsaved" data-num="' + x + '" style="display:inline-block; width:95%;"> <div class="modalhead" style="float:left; width:100%;"> <h4 style="float:left; width:90%; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; margin-bottom: 0px;" title="' + savednews[x]['title'] + '">' + savednews[x]['title'] + '</h4> <div id="rem" style="float:right; cursor:pointer; "><i class="fa fa-times"></i></div><br/> <i style="float: right; margin-bottom: 10px; opacity: 0.4; font-size: 10px; font-weight: bold;">Source: ' + savednews[x]['source'] + '</i> </div> <p style="float:left">' + savednews[x]['desc'] + '</p></div>'
+        $('#savednewsmodalcontainer').prepend(el);
+        $('.prevsaved[data-num="' + x + '"] #rem').on('click',function(){
+          specificid = $(this).parents('.prevsaved').attr('data-num');
+          title = $(this).parents('.prevsaved').find('h4').text();
+          $('.prevsaved[data-num="' + specificid + '"]').remove();
+          if($('.news h4:contains(title)').length != 0){
+            console.log("one inner");
+            if($('.news h4:contains(title)').parents('.news').find('#saveart').attr('data-saved') == "true"){
+              $('.news h4:contains(title)').parents('.news').find('#saveart').trigger("click");
+              console.log("inner if");
+            }
+          }else{
+            removearticle(title);
+          }
+        });
+      };
+      
+    }
+
+    var showalert = function(title,link,desc,type) {
+      options = {
+            title: title,
+            text: desc
+        }
+      if(type === "info"){
+        options['type'] = type ;
+        options['showCancelButton'] = true ;
+        options['confirmButtonColor'] = "#DD6B55";
+        options['confirmButtonText'] =  "Go to article";
+        options['cancelButtonText'] =  "Close";
+        options['closeOnConfirm'] =  false;
+      }else if(type === "success"){
+        options['type'] = type ;
+        options['confirmButtonColor'] = "#DD6B55";
+        options['timer'] = 3000;
+      }else if(type === "error"){
+        options['type'] = type ;
+        options['confirmButtonColor'] = "#DD6B55";
+        options['timer'] = 2500;
+      }
+      swal(options, function(){
+        if(type === "info"){
+          window.open(link, '_blank');
+        }
+      });
+    }
+
+    var startspeaking =function(){
+      statePlaying = true;
+      $('#audstate').text('Playing');
+      if(returningUser){
+        startind = newsind;
+      }else{
+        startind = 0
+      }
+      for (var x = startind; x<speakingNews.length; x++){
+        news = speakingNews[x]
+        speak(news);
+      }      
+      return
+    };
+
+    var speak = function(content){
+      news = new SpeechSynthesisUtterance(content);
+      news.onend = function(){
+        newsind+=1;
+        $('.news').css('opacity',0.5)
+        $('.news[data-newsid="'+ newsind +'"]').css('opacity',1)
+        $('#newscontainer').scrollTo($('.news[data-newsid="' + newsind + '"]'),500,{offset:-10});
+        return
+      };
+      window.speechSynthesis.speak(news);
+    };
+  });
+</script>
+<style>
+div.news{
+  opacity:0.5;
+  -webkit-transition: opacity 1s; /* For Safari 3.1 to 6.0 */
+  transition: opacity 1s;
+}
+div.news:hover{
+  opacity: 1;
+}
+</style>

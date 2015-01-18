@@ -1,0 +1,17 @@
+{
+  "name": "Jarvis",
+  "description": "news reader for modern age",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "*",
+    "socket.io": "*",
+    "ejs": "*",
+    "feedparser": "*",
+    "request": "*",
+    "cheerio": "*",
+    "express-session": "*",
+    "mongojs": "*",
+    "body-parser":"*"
+  }
+}

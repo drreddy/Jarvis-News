@@ -1,0 +1,277 @@
+<html lang="en">
+  <head>
+    <% include partials/head %>
+  </head>
+  <body>
+    <div class="container">
+
+      <% include partials/home/header %>
+
+      <div class="inner">
+
+        <% include partials/home/categories %>
+        
+        <hr style="border: 1px dashed #CCC; margin: 0px;" />
+        <div style="display:inline-block; width:100%;">
+
+          <div class="left" style="width:70%; display:inline-block; float:left;">
+            <div class="innerheader" style="width:98%; display:inline-block; float:left;">
+              <span style="float:left;">
+                  Showing news from <span id="sourcehead">selected source</span> <i class="fa fa-hand-o-down" style="color:grey;"></i> 
+              </span>
+              <span class="controls well" style="float:right; font-size: 15px; line-height: 15px; margin-right:10px; display: inline-block; color: whitesmoke; opacity: 0.7; padding: 5px;">
+                <!-- <i class="fa fa-step-backward" id="fb"></i> -->
+                <!-- <i class="fa fa-stop" id="reset"></i> -->
+                <i class="fa fa-play" id="state"></i>
+                <!-- <i class="fa fa-step-forward" id="ff"></i>  -->
+              </span>
+            </div>
+            <div class="well" id="newscontainer" style="margin-top:10px; width:93%; display:inline-block; float:left; height: 325px; overflow-y:auto;">
+            </div>
+          </div>
+          <div class="right" style="width:30%; display:inline-block; float:left;">
+            <div class="well" style="height:400px; margin-top:10px;">
+              <div class="innerheader" style="width:100%; display:inline-block; float:left; margin: 0px 0px 10px 0px; font-size: 20px; text-align:center">
+                Saved articles for current session <i class="fa fa-hand-o-down" style="color:grey;"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="cover">
+    </div>
+
+    <% include partials/loader %>
+    <p class="loadingtext flashing">
+      loading...
+    </p>
+
+    <% include modals/settings %>
+
+    <% include partials/foot %>
+  </body>
+</html>
+<script src="http://demos.flesler.com/jquery/scrollTo/js/jquery.scrollTo-min.js?1.4.11"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="text/javascript">
+  window.speechSynthesis.cancel();
+
+  var socket = io();
+
+  socket.on("connect",function(){
+    console.log("connected to server");
+  });
+
+  var fadetoggle = function(){
+    $('#cover').fadeToggle("medium",function(){
+      $('.gifcontainer').fadeToggle();
+      $('.loadingtext').fadeToggle();
+    });
+  }
+
+  var speakingNews = [],
+      statePlaying = false,
+      newsind = 0;
+
+  $(document).ready(function(){
+
+    if (window.SpeechSynthesisUtterance === undefined) {
+      alert('speech synthesis is not available for your browser');
+    }
+
+    $(window).on('beforeunload', function() {
+      window.speechSynthesis.cancel();
+      // return 'Removing all the links to the page and performing a reload...';
+    });
+
+    $('.dropdown #source').on('click',function(){
+      var source_code = $(this).attr('data-code');
+      window.speechSynthesis.cancel();
+      speakingNews = [];
+      socket.emit("get data",source_code);
+      fadetoggle();
+      // console.log(source_code);
+    });
+
+    var changeState = function(){
+      if (!statePlaying) {
+        window.speechSynthesis.resume();
+        statePlaying = true;
+      }else{
+        window.speechSynthesis.pause();
+        statePlaying = false;
+      }
+    }
+
+    $("#state").on('click',function(){
+      $(this).hasClass('fa fa-play') ? $(this).attr('class','fa fa-pause') : $(this).attr('class','fa fa-play');
+
+      // console.log(window.speechSynthesis.speaking)
+
+      (window.speechSynthesis.speaking) ? changeState() : startspeaking() ;
+
+      //Google US English , Google UK English Male, Google UK English Female, native
+      
+
+      //value="en-US" data-voice-uri="Google US English" , value="en-GB" data-voice-uri="Google UK English Male" , value="en-GB" data-voice-uri="Google UK English Female" , value="es-ES" data-voice-uri="Google Español" , value="fr-FR" data-voice-uri="Google Français" , value="it-IT" data-voice-uri="Google Italiano" , value="de-DE" data-voice-uri="Google Deutsch" , value="ja-JP" data-voice-uri="Google 日本人" , value="ko-KR" data-voice-uri="Google 한국의" , value="zh-CN" data-voice-uri="Google 中国的" , value="" data-voice-uri="native"
+
+      // var msg = new SpeechSynthesisUtterance();
+
+      // // Set the text.
+      // msg.text = "My name is tony stark and I'am Iron man";
+      
+      // // Set the attributes.
+      // // msg.volume = parseFloat(volumeInput.value);
+      // // msg.rate = parseFloat(rateInput.value);
+      // // msg.pitch = parseFloat(pitchInput.value);
+      
+      // // If a voice has been selected, find the voice and set the
+      // // utterance instance's voice attribute.
+      // msg.voice = "Google UK English Male";
+      
+      // Queue this utterance.
+      // window.speechSynthesis.speak(msg);
+    });
+
+    var donecancelling = function () {
+        newsind = 0;
+        $('.news').css('opacity',0.5)
+        $('.news[data-newsid="'+ newsind +'"]').css('opacity',1)
+        $('#newscontainer').scrollTo($('.news[data-newsid="' + newsind + '"]'),500,{offset:-10});
+        $('#state').attr('class','fa fa-play');
+    };
+
+    $('#reset').on('click',function(){
+      window.speechSynthesis.cancel();
+      statePlaying = false;
+    });
+
+    $('#ff').on('click',function(){
+      window.speechSynthesis.cancel();
+      // statePlaying = false;
+      next()
+    });
+
+    var next = function () {
+      $('.news').css('opacity',0.5)
+      $('.news[data-newsid="'+ (newsind + 1) +'"]').css('opacity',1)
+      $('#newscontainer').scrollTo($('.news[data-newsid="'+ (newsind + 1) +'"]'),500,{offset:-10});
+      startspeaking(newsind+1);
+    }
+
+    $('#fb').on('click',function(){
+      window.speechSynthesis.cancel();
+      // statePlaying = false;
+      backque()
+    });
+
+    var backque = function() {
+      $('.news').css('opacity',0.5)
+      $('.news[data-newsid="'+ (newsind - 1) +'"]').css('opacity',1)
+      $('#newscontainer').scrollTo($('.news[data-newsid="'+ (newsind - 1) +'"]'),500,{offset:-10});
+      startspeaking(newsind-1);
+      // startspeaking();
+    };
+
+    // var modQue = function(nextflag){
+    //   var now = parseInt($('#focused').attr('data-newsid'),10);
+    //   if (nextflag){
+    //     var next = now + 1;
+    //   }else{
+    //     var next = now - 1; // (now > 0)? next = now - 1 : next = now ;
+    //   }
+    //   $('.news[data-newsid="'+ now +'"]').css('opacity',0.5).removeAttr('id');
+    //   $('.news[data-newsid="'+ next +'"]').css('opacity',1).attr('id','focused');
+    //   $('#newscontainer').scrollTo($('.news[data-newsid="'+ next +'"]'),500,{offset:-10});
+    //   startspeaking();
+    // }
+
+    $("#saveart").on('click',function(){
+      $(this).hasClass('fa fa-bookmark-o') ? $(this).attr('class','fa fa-bookmark') : $(this).attr('class','fa fa-bookmark-o')
+    })
+
+    socket.on("news",function(mssg){
+      // console.log(mssg);
+      populate(mssg);
+      //fadetoggle();
+    });
+
+    var populate = function(data){
+      $('#newscontainer').html("");
+      dataObj = JSON.parse(data);
+      sourceName = dataObj['source'];
+      $("#sourcehead").text(sourceName);
+      for(var x in dataObj['news']){
+        news = dataObj['news'][x];
+        createElem(news['title'],news['description'],news['link'],x);
+        speakingNews.push(news['title']);
+      }
+      $('.news:eq(0)').css('opacity',1);
+      fadetoggle();
+    };
+
+    var createElem = function(header,desc,link,newsindex){
+      divstring = '<div class="well news" data-newsid="' + newsindex + '" style="width:93%; display:inline-block; float:left; margin-bottom:5px; opacity:0.5"><div class="head" style="width:100%; float:left; border-bottom: 1px dashed lightgrey; margin-bottom:10px;"> <h4 style="margin: 0px; width:100%; float:left;"><span style="width: 90%; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; float: left;">' + header + '</span> <span style="float:right;"> <a href="' + link + '" target="none"> <i class="fa fa-external-link-square"></i></a> <i class="fa fa-bookmark-o" id="saveart" style="cursor:pointer;"></i></span> </h4> </div> <div class="body" style="max-height:45px; width:100%; float:left; overflow:hidden; position:relative;" >' + desc + ' <p class="readmore"><a><i class="fa fa-eye" id="more" style="cursor:pointer;"></i></a></p></div></div>';
+      $('#newscontainer').append(divstring);
+    };
+
+    // $('#newscontainer').scrollTo($('.news[data-newsid="10"]'),500,{offset:-10})
+
+    var startspeaking =function(){
+      // var arrayofitems = [new SpeechSynthesisUtterance("this is cool"), new SpeechSynthesisUtterance("My name is tony stark"), new SpeechSynthesisUtterance("and I'am Iron man")];
+      statePlaying = true;
+      for (var x in speakingNews){
+        news = speakingNews[x]
+        speak(news);
+      }
+      return
+      // console.log(newsInd)  
+    };
+
+    var speak = function(content){
+      news = new SpeechSynthesisUtterance(content);
+      news.onend = function(){
+        newsind+=1;
+        $('.news').css('opacity',0.5)
+        $('.news[data-newsid="'+ newsind +'"]').css('opacity',1)
+        $('#newscontainer').scrollTo($('.news[data-newsid="' + newsind + '"]'),500,{offset:-10});
+        return
+      };
+      window.speechSynthesis.speak(news);
+    };
+
+    // onle for tsting pusrpose
+    $('#cover').on('click',function(){
+      fadetoggle();
+    });
+  });
+</script>
+<style>
+div.news:hover{
+  opacity: 1;
+}
+</style>
+
+<!-- <div class="well news" style="width:93%; display:inline-block; float:left; margin-bottom:5px;">
+                <div class="head" style="width:100%; float:left; border-bottom: 1px dashed lightgrey; margin-bottom:10px;">
+                  <h4 style="margin: 0px; width:100%; float:left;">Swiss franc rises sharply after central bank removes euro cap <span style="float:right;"><a href="#" target="none"><i class="fa fa-external-link-square"></i></a> <i class="fa fa-bookmark-o" id="saveart" style="cursor:pointer;"></i></span></h4>
+                </div>
+                <div class="body" style="max-height:45px; width:100%; float:left; overflow:hidden; position:relative;">
+                    Today, IE8 is one year away from the end of security patches and technical support (http:&#x2F;&#x2F;www.zdnet.com&#x2F;article&#x2F;microsoft-to-drop-support-for-older-versions-of-internet-explorer&#x2F;).<p>If your organization still develops for IE8, this is an excellent anchor for the beginning of a plan to end that support.<p>Most development teams I&#x27;ve talked to support IE8 because of a single client they can&#x27;t turn down. By talking about the looming security issues and development challenges IE8 presents, as well as their plans for moving off XP, you can help inform and move their process forward.<p>If you&#x27;ve had success migrating off IE8 or talking to a customer&#x2F;client about the move, please share your experiences!
+                    <p class="readmore"><a><i class="fa fa-eye" id="more" style="cursor:pointer;"></i></a></p>
+                </div>
+              </div>  
+              <div class="well" style="width:93%; display:inline-block; float:left; margin-bottom:5px;">
+                &nbsp;
+              </div>
+              <div class="well" style="width:93%; display:inline-block; float:left; margin-bottom:5px;">
+                &nbsp;
+              </div>
+              <div class="well" style="width:93%; display:inline-block; float:left; margin-bottom:5px;">
+                &nbsp;
+              </div>
+              <div class="well" style="width:93%; display:inline-block; float:left; margin-bottom:5px;">
+                &nbsp;
+              </div> -->
