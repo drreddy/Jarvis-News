@@ -9,12 +9,12 @@ var mongojs = require('mongojs');
 var getnewsfromrss = require('./modules/rss');
 var getnewsfromapi = require('./modules/api');
 
-local = false;
+local = true;
 
 if(local){
   mongoUrl = "jarvislocal"
 }else{
-  mongoUrl = "mongo db link goes here"
+  mongoUrl = "db link"
 }
 
 var collections = ["users"]
