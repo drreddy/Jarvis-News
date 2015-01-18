@@ -2,7 +2,7 @@ Jarvis-News
 
 Jarvis is a new age news/imformation aggregator for users. Jarvis goes out and collects the latest stuff going on from the sites and serve them to you, it also lets you to save the content for future reading. Jarvis also provides some surprise user experience features (like uttering the news content, hands free control (basic implemented) ) on the client side, which makes it the best.
 
-Note: This is just a basic proof of idea project. Strict validations ans code optimizations have not been implemented yet.
+Note: This is just a basic proof of idea project. Strict validations ans code optimizations have not been implemented yet. The speech utterence works only in google chrome as is part of a experimental API (web speech api).
 
 This app has been developed for IBM-Hackathon. For Hackathon judges if you want to test the app. You can use the following credentials:
 
